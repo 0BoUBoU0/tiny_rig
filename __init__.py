@@ -25,7 +25,7 @@ bl_info = {
     "warning": "",
     "category": "Rigging",
     "blender": (3,60,0),
-    "version": (0,2,231)
+    "version": (0,2,263)
 }
 
 # get addon name and version to use them automaticaly in the addon
@@ -47,7 +47,7 @@ def append_coll(coll_name):
     # get addon's name
     for addon_name in bpy.context.preferences.addons.keys():
         addon_name_b = addon_name.replace("-","_") # to avoid name changes beacause of gitlab
-        if addon_name_b.startswith("tinyrig"):
+        if addon_name_b.startswith("tiny_rig"):
             addon = bpy.context.preferences.addons.get(addon_name)
 
     if coll_name not in bpy.data.collections.keys():
@@ -70,7 +70,7 @@ def append_coll(coll_name):
 
 ### create property ###
 class TINYRIG_properties (bpy.types.PropertyGroup):
-    #my_props : bpy.props.PointerProperty (type=bpy.types.Collection, name="Bank", description="Current randomize bank")
+    #rigscale_prop : bpy.props.FloatProperty (name="",default=1, min=0.001,description = "rig scale")
     pass
 
 # add tool to armature
@@ -103,6 +103,11 @@ class TINYRIG_OT_rig(bpy.types.Operator):
     rigloc_prop: bpy.props.EnumProperty (items = rigloc_opt,
                                         default=2,
                                         name = 'Location',
+    )
+    storeobjinrigcoll_prop: bpy.props.BoolProperty(
+            name = "Store into rig collection",
+            description = "if checked, the object will be stored in the new rig collection",
+            default=True,
     )
 
     def execute(self, context):
@@ -138,10 +143,9 @@ class TINYRIG_OT_rig(bpy.types.Operator):
         collrig = bpy.data.collections[collRig_name]
 
         # rename regarding selected obj
-        objRig.name = f'{objRig_name}-{obj_active.name}'
-        collrig.name = f'{collRig_name}-{obj_active.name}'
+        objRig.name = f'{obj_active.name}-{objRig_name}'
+        collrig.name = f'{obj_active.name}-{collRig_name}'
 
-        
 
         orig_loc_key = obj_active.location
         if self.rigloc_prop == 'Bone to Object':
@@ -157,8 +161,12 @@ class TINYRIG_OT_rig(bpy.types.Operator):
             
         ## scale the rig regarding what user wants
         for key,value in bonesname_dict.items():
-            objRig.pose.bones[value].custom_shape_scale_xyz*= self.rigscale_prop
+            objRig.pose.bones[bonesname_dict["root"]]['visual_scale'] = self.rigscale_prop
+            #objRig.pose.bones[value].custom_shape_scale_xyz*= self.rigscale_prop
+        #setattr(bpy.context.scene.tinyrigprops, 'rigscale_prop', self.rigscale_prop)
+        
 
+        # parent rig + bone
         for obj in sel_obj:
             obj.select_set(True)
             objRig.select_set(True)    
@@ -170,6 +178,11 @@ class TINYRIG_OT_rig(bpy.types.Operator):
             # deselect
             bpy.ops.object.select_all(action='DESELECT')
 
+        # if store in rig collection
+        if self.storeobjinrigcoll_prop:
+            for user_coll in obj.users_collection:
+                user_coll.objects.unlink(obj)
+            collrig.objects.link(obj)
 
         print(f"{Addon_Name} done on : selected objects \n")
         print(f"\n {separator} {self.bl_label} finished {separator} \n")
@@ -188,10 +201,9 @@ addon_keymaps = []
 
 # register classes
 def register():
-    
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.tinyrig_props = bpy.props.PointerProperty (type = TINYRIG_properties)
+    bpy.types.Scene.tinyrigprops = bpy.props.PointerProperty (type = TINYRIG_properties)
     bpy.types.VIEW3D_MT_armature_add.append(menu_func)
 
     # add keymap
@@ -209,7 +221,7 @@ def unregister():
     bpy.types.VIEW3D_MT_armature_add.remove(menu_func)
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.tinyrig_props
+    del bpy.types.Scene.tinyrigprops
 
     # remove keymap
     # for keymap, keymapitem in addon_keymaps:
