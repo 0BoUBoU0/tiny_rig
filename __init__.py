@@ -25,7 +25,7 @@ bl_info = {
     "warning": "",
     "category": "Rigging",
     "blender": (3,60,0),
-    "version": (0,2,263)
+    "version": (0,2,27)
 }
 
 # get addon name and version to use them automaticaly in the addon
@@ -37,6 +37,7 @@ import bpy
 import os
 from statistics import mean
 from importlib.util import find_spec
+from random import uniform
 
 ### define global variables ###
 debug_mode = False
@@ -90,7 +91,7 @@ class TINYRIG_OT_rig(bpy.types.Operator):
     
     # redo panel = user interraction
     rigscale_prop: bpy.props.FloatProperty(
-            name = "Rig Scale",
+            name = "Rig Visual Scale",
             description = "descripyion",
             default=1,min=0.001,
     )
@@ -107,6 +108,12 @@ class TINYRIG_OT_rig(bpy.types.Operator):
     storeobjinrigcoll_prop: bpy.props.BoolProperty(
             name = "Store into rig collection",
             description = "if checked, the object will be stored in the new rig collection",
+            default=True,
+    )
+
+    nonselectableobj_prop: bpy.props.BoolProperty(
+            name = "Hide object selection",
+            description = "if checked, the object won't be selectable, but the rig will",
             default=True,
     )
 
@@ -161,6 +168,10 @@ class TINYRIG_OT_rig(bpy.types.Operator):
             
         ## scale the rig regarding what user wants
         for key,value in bonesname_dict.items():
+            if self.rigscale_prop == 1:
+                self.rigscale_prop *= uniform(.8,1.2)
+            else:
+                pass
             objRig.pose.bones[bonesname_dict["root"]]['visual_scale'] = self.rigscale_prop
             #objRig.pose.bones[value].custom_shape_scale_xyz*= self.rigscale_prop
         #setattr(bpy.context.scene.tinyrigprops, 'rigscale_prop', self.rigscale_prop)
@@ -183,6 +194,10 @@ class TINYRIG_OT_rig(bpy.types.Operator):
             for user_coll in obj.users_collection:
                 user_coll.objects.unlink(obj)
             collrig.objects.link(obj)
+
+        # unselect object
+        if self.nonselectableobj_prop:
+            obj.hide_select = True
 
         print(f"{Addon_Name} done on : selected objects \n")
         print(f"\n {separator} {self.bl_label} finished {separator} \n")
